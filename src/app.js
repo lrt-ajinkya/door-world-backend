@@ -7,7 +7,10 @@ const app = express();
 
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://doorworld-frontend.onrender.com']
+    ? [
+        'https://doorworld-frontend.onrender.com',
+        'https://door-world-frontend-production.up.railway.app'
+      ]
     : true,
   credentials: true,
   optionsSuccessStatus: 200
