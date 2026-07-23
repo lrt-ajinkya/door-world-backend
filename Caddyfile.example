@@ -1,0 +1,67 @@
+# Caddyfile for doorworld Backend
+# Place this file at /etc/caddy/Caddyfile on your server
+
+# Replace with your domain or use IP address
+your-domain.com {
+    # Reverse proxy to Node.js backend
+    reverse_proxy localhost:3420 {
+        # Health check
+        health_uri /health
+        health_interval 30s
+        health_timeout 5s
+        
+        # Headers for better security
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security max-age=31536000;
+        
+        # Prevent MIME sniffing
+        X-Content-Type-Options nosniff
+        
+        # Enable XSS protection
+        X-XSS-Protection "1; mode=block"
+        
+        # Prevent clickjacking
+        X-Frame-Options DENY
+        
+        # Remove server information
+        -Server
+    }
+    
+    # Rate limiting (optional)
+    rate_limit {
+        zone static {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+    }
+    
+    # Gzip compression
+    encode gzip
+    
+    # Logging
+    log {
+        output file /var/log/caddy/doorworld-access.log
+        format json
+    }
+}
+
+# Health check endpoint (accessible without domain)
+:3421 {
+    respond /health 200 {
+        body "Caddy is healthy"
+    }
+}
+
+# Optional: Redirect www to non-www
+www.your-domain.com {
+    redir https://your-domain.com{uri} permanent
+}

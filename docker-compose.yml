@@ -1,0 +1,75 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: doorworld-backend
+    restart: unless-stopped
+    ports:
+      - "3420:3420"
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: doorworld_db
+      DB_USER: doorworld_user
+      DB_PASSWORD: ${DB_PASSWORD:-doorworld_secure_password_2024}
+      JWT_SECRET: ${JWT_SECRET:-your_very_secure_jwt_secret_key_production_2024}
+      PORT: 3420
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backup:/usr/src/app/backup:ro
+    networks:
+      - doorworld-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3420/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  db:
+    image: postgres:15-alpine
+    container_name: doorworld-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: doorworld_db
+      POSTGRES_USER: doorworld_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-doorworld_secure_password_2024}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backup/SQL:/docker-entrypoint-initdb.d:ro
+    networks:
+      - doorworld-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doorworld_user -d doorworld_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: >
+      postgres
+        -c shared_preload_libraries='pg_stat_statements'
+        -c pg_stat_statements.track=all
+        -c max_connections=100
+        -c shared_buffers=256MB
+        -c effective_cache_size=1GB
+        -c work_mem=4MB
+        -c maintenance_work_mem=64MB
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  doorworld-network:
+    driver: bridge
